@@ -1,4 +1,4 @@
-# exter Developments - Tablet System - by Sobing4413
+# ExterFramework - Tablet System
 
 - Hello, first of all thank you for purchasing our script !
 
