@@ -1,151 +1,204 @@
-local tablet = false
-local opened = false
-local tabletDict = "amb@code_human_in_bus_passenger_idles@female@tablet@base"
-local tabletAnim = "base"
-local tabletProp = "prop_cs_tablet"
-local tabletBone = 60309
-local tabletOffset = vector3(0.03, 0.002, -0.0)
-local tabletRot = vector3(10.0, 160.0, 0.0)
+local tablet = {
+    active = false,
+    uiOpen = false,
+    object = nil,
+    dict = 'amb@code_human_in_bus_passenger_idles@female@tablet@base',
+    anim = 'base',
+    prop = 'prop_cs_tablet',
+    bone = 60309,
+    offset = vector3(0.03, 0.002, 0.0),
+    rot = vector3(10.0, 160.0, 0.0)
+}
 
+local function safeFocus(enable)
+    SetNuiFocus(enable, enable)
+    SetNuiFocusKeepInput(enable)
+end
 
-RegisterNetEvent('exter-tablet:openTablet', function()
-    SetNuiFocus(true, true)
-    ToggleTablet(true)
+local function stopTabletAnimation()
+    local ped = PlayerPedId()
 
-    local backG = GetResourceKvpString('exterTabletBG')
+    if tablet.object and DoesEntityExist(tablet.object) then
+        DetachEntity(tablet.object, true, false)
+        DeleteEntity(tablet.object)
+        tablet.object = nil
+    end
 
+    StopAnimTask(ped, tablet.dict, tablet.anim, 2.0)
+    ClearPedSecondaryTask(ped)
+end
+
+local function playTabletAnimationLoop()
+    CreateThread(function()
+        RequestAnimDict(tablet.dict)
+        while not HasAnimDictLoaded(tablet.dict) do
+            Wait(0)
+        end
+
+        RequestModel(tablet.prop)
+        while not HasModelLoaded(tablet.prop) do
+            Wait(0)
+        end
+
+        local ped = PlayerPedId()
+        tablet.object = CreateObject(tablet.prop, GetEntityCoords(ped), true, true, false)
+        AttachEntityToEntity(
+            tablet.object,
+            ped,
+            GetPedBoneIndex(ped, tablet.bone),
+            tablet.offset.x,
+            tablet.offset.y,
+            tablet.offset.z,
+            tablet.rot.x,
+            tablet.rot.y,
+            tablet.rot.z,
+            true,
+            false,
+            false,
+            false,
+            2,
+            true
+        )
+
+        SetCurrentPedWeapon(ped, `WEAPON_UNARMED`, true)
+
+        while tablet.active do
+            ped = PlayerPedId()
+
+            if not IsEntityPlayingAnim(ped, tablet.dict, tablet.anim, 3) then
+                TaskPlayAnim(ped, tablet.dict, tablet.anim, 3.0, 3.0, -1, 49, 0, false, false, false)
+            end
+
+            Wait(300)
+        end
+
+        stopTabletAnimation()
+        SetModelAsNoLongerNeeded(tablet.prop)
+        RemoveAnimDict(tablet.dict)
+    end)
+end
+
+local function setTabletState(enable)
+    if enable == tablet.active then
+        return
+    end
+
+    tablet.active = enable
+
+    if enable then
+        if not IsPedInAnyVehicle(PlayerPedId(), false) then
+            playTabletAnimationLoop()
+        end
+    else
+        stopTabletAnimation()
+    end
+end
+
+local function closeTabletUI()
+    safeFocus(false)
+    setTabletState(false)
+    SendNUIMessage({ type = 'hideTabletUI' })
+    tablet.uiOpen = false
+end
+
+local function openTabletUI()
+    local backG = GetResourceKvpString('exterTabletBG') or Config.Defaults.background
+
+    safeFocus(true)
+    setTabletState(true)
     SendNUIMessage({
         type = 'showTabletUI',
-        bG = backG 
+        bG = backG
     })
-    opened = true
-end)
 
-RegisterNUICallback("exter-tablet:saveSettings", function(data)
-    if data.bg then
-        SetResourceKvp('exterTabletBG', data.bg)
-        SetNuiFocus(false, false)
-        ToggleTablet(false)
-        SavedSettings()
-        SendNUIMessage({
-            type = 'hideTabletUI'
-        })
-        opened = false
-    end   
-end)
+    tablet.uiOpen = true
+end
 
-RegisterNetEvent("exter-tablet:Notify", function(t, d, i, du)
+local function notifyLockedApp(title, description, image, duration)
     SendNUIMessage({
         type = 'notify',
-        title = t,
-        description=d,
-        imgSrc=i,
-        duration=du,  
+        title = title,
+        description = description,
+        imgSrc = image,
+        duration = duration
     })
+end
+
+RegisterNetEvent('exter-tablet:openTablet', openTabletUI)
+
+RegisterNetEvent('exter-tablet:Notify', function(title, description, image, duration)
+    notifyLockedApp(title, description, image, duration)
 end)
 
-RegisterNetEvent("exter-tablet:fB2", function()
-    if opened == true then
-        SetNuiFocus(true, true)
+RegisterNetEvent('exter-tablet:fB', function()
+    if tablet.uiOpen then
+        safeFocus(true)
     end
 end)
 
-RegisterNetEvent("exter-tablet:fB", function()
-    if opened == true then
-        SetNuiFocus(true, true)
+RegisterNetEvent('exter-tablet:fB2', function()
+    if tablet.uiOpen then
+        safeFocus(true)
     end
 end)
 
-RegisterNUICallback("hideTab", function(data)
-    SetNuiFocus(false, false)
-    ToggleTablet(false)
-    SendNUIMessage({
-        type = 'hideTabletUI'
-    })
-    opened = false
+RegisterNUICallback('hideTab', function(_, cb)
+    closeTabletUI()
+    cb('ok')
 end)
 
+RegisterNUICallback('exter-tablet:saveSettings', function(data, cb)
+    if data and data.bg and data.bg ~= '' then
+        SetResourceKvp('exterTabletBG', data.bg)
+        SavedSettings()
+    end
 
-RegisterNUICallback("openApp", function(data)
-    TriggerEvent("exter-tablet:fB")
+    closeTabletUI()
+    cb('ok')
+end)
 
-    if data.appName == "gruppe6" then
-        TriggerEvent("exter-gruppe6job:Sign")
-    elseif data.appName == 'contacts' then
-        TriggerEvent("exter-contacts:showTablet")
-    elseif data.appName == 'groups' then 
-        TriggerEvent("exter-grops:open")
-    elseif data.appName == 'trucking' then 
-        TriggerEvent("exter-trucking:OpenTab")
-    elseif data.appName == 'underground' then 
+RegisterNUICallback('openApp', function(data, cb)
+    TriggerEvent('exter-tablet:fB')
 
+    local appName = data and data.appName or nil
+    if not appName then
+        cb('ok')
+        return
+    end
+
+    if appName == 'gruppe6' then
+        TriggerEvent('exter-gruppe6job:Sign')
+    elseif appName == 'contacts' then
+        TriggerEvent('exter-contacts:showTablet')
+    elseif appName == 'groups' then
+        TriggerEvent('exter-grops:open')
+    elseif appName == 'trucking' then
+        TriggerEvent('exter-trucking:OpenTab')
+    elseif appName == 'underground' then
         TriggerCallback('exter-tablet:hasItem', function(hasItem)
             if hasItem then
                 TriggerEvent('exter-boosting:OpenTab')
             else
-                TriggerEvent("exter-tablet:Notify", "Underground", "You need a chip to access this application.", 'assets/ug-icon.png', 5000)
+                notifyLockedApp('Underground', 'You need a chip to access this application.', 'assets/ug-icon.png', 5000)
             end
-        end, 'ugchip')
-    elseif data.appName == 'hq' then 
+        end, Config.RequiredItems.underground)
+    elseif appName == 'hq' then
         TriggerCallback('exter-tablet:hasItem', function(hasItem)
-            if hasItem then
-                print('Player has the item.')
-            else
-                TriggerEvent("exter-tablet:Notify", "HQ", "You need a chip to access this application.", 'assets/hq.png', 5000)
+            if not hasItem then
+                notifyLockedApp('HQ', 'You need a chip to access this application.', 'assets/hq.png', 5000)
             end
-        end, 'hqchip')
-    elseif data.appName == 'business' then 
-        TriggerEvent("exter-tablet:Notify", "Business", "Not ready yet!", 'assets/business.png', 2000)
-    else
-        --App not added yet
+        end, Config.RequiredItems.hq)
+    elseif appName == 'business' then
+        notifyLockedApp('Business', 'Not ready yet!', 'assets/business.png', 2000)
     end
-    
+
+    cb('ok')
 end)
 
-function ToggleTablet(toggle)
-    if toggle and not tablet then
-        tablet = true
-
-        if not IsPedInAnyVehicle(PlayerPedId(), false) then
-            Citizen.CreateThread(function()
-                RequestAnimDict(tabletDict)
-
-                while not HasAnimDictLoaded(tabletDict) do
-                    Citizen.Wait(150)
-                end
-
-                RequestModel(tabletProp)
-
-                while not HasModelLoaded(tabletProp) do
-                    Citizen.Wait(150)
-                end
-
-                local playerPed = PlayerPedId()
-                local tabletObj = CreateObject(tabletProp, 0.0, 0.0, 0.0, true, true, false)
-                local tabletBoneIndex = GetPedBoneIndex(playerPed, tabletBone)
-
-                SetCurrentPedWeapon(playerPed, weapon_unarmed, true)
-                AttachEntityToEntity(tabletObj, playerPed, tabletBoneIndex, tabletOffset.x, tabletOffset.y, tabletOffset.z, tabletRot.x, tabletRot.y, tabletRot.z, true, false, false, false, 2, true)
-                SetModelAsNoLongerNeeded(tabletProp)
-
-                while tablet do
-                    Citizen.Wait(100)
-                    playerPed = PlayerPedId()
-
-                    if not IsEntityPlayingAnim(playerPed, tabletDict, tabletAnim, 3) then
-                        TaskPlayAnim(playerPed, tabletDict, tabletAnim, 3.0, 3.0, -1, 49, 0, 0, 0, 0)
-                    end
-                end
-
-                ClearPedSecondaryTask(playerPed)
-
-                Citizen.Wait(450)
-
-                DetachEntity(tabletObj, true, false)
-                DeleteEntity(tabletObj)
-            end)
-        end
-    elseif not toggle and tablet then
-        tablet = false
+AddEventHandler('onResourceStop', function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then
+        return
     end
-end
+
+    closeTabletUI()
+end)
