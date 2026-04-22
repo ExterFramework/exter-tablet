@@ -1,18 +1,6 @@
-if Config.Framework == "QBCore" then 
-    QBCore = exports[Config.FrameworkFolder]:GetCoreObject()
-elseif Config.Framework == "ESX" then 
-    ESX = exports[Config.FrameworkFolder]:getSharedObject()
-end
+-- Backward compatibility helper.
+-- Keep this file so external resources that include it do not break.
 
-function Notify(msg, typ)
-    if Config.Framework == 'QBCore' then
-        QBCore.Functions.Notify(msg, typ)
-    else
-        ESX.ShowHelpNotification(msg)
-    end
-end
-
-
-function SavedSettings()
-    Notify("Your Settings was saved sucessfully !")
+function TabletNotify(message, msgType)
+    Notify(message, msgType)
 end

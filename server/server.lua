@@ -1,8 +1,8 @@
 local CodeID = {
-    codeName = 'ExterFramework',
-    version = '1.2.0'
+    codeName = 'Exter Tablet',
+    version = '2.0.0'
 }
-  
-Citizen.CreateThread(function()
-    print('[' .. CodeID.codeName .. '] v' .. CodeID.version .. ' sucessfully started!')
+
+CreateThread(function()
+    print(('[%s] v%s successfully started!'):format(CodeID.codeName, CodeID.version))
 end)

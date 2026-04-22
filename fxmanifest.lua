@@ -1,41 +1,37 @@
 fx_version 'cerulean'
-
 game 'gta5'
-
 lua54 'yes'
 
 author 'Sobing4413'
-
-description 'ExterFramework'
-
+description 'Exter Tablet - multi framework compatibility layer'
 name 'exter-tablet'
-
-version '1.0.0'
+version '2.0.0'
 
 files {
-    'web/**',
-    'web/assets/**',
+    'web/**'
 }
 
 ui_page 'web/index.html'
 
-client_scripts {
-	'client/core.lua',
-	'client/**.lua',
+shared_scripts {
+    'shared/config.lua',
+    'shared/adapters.lua'
 }
 
-shared_scripts {
-	
-	'shared/**.lua',
+client_scripts {
+    'client/core.lua',
+    'client/main.lua',
+    'client/notifications.lua'
 }
 
 server_scripts {
-	'server/core.lua',
-	'server/**.lua',
+    'server/core.lua',
+    'server/server.lua',
+    'server/open_server.lua'
 }
 
 escrow_ignore {
-	'shared/**',
-	'client/**.lua',
-	'server/**.lua',
+    'shared/**',
+    'client/**.lua',
+    'server/**.lua'
 }
